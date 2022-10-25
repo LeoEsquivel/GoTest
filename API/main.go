@@ -9,11 +9,14 @@ import (
 )
 
 func main() {
+	port := ":3000"
 	r := chi.NewRouter()
 
 	r.Route("/api", func(r chi.Router) {
-		r.Post("/", handler.GetLastMails(0, 5))
+		r.Get("/{from}-{limit}", handler.GetLastMails())
+		r.Get("/search/{term}-{from}-{limit}", handler.Search())
 	})
 
-	http.ListenAndServe(":3000", r)
+	http.ListenAndServe(port, r)
+
 }
