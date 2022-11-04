@@ -9,10 +9,19 @@
     </div>
   </nav>
 
+  <div>
+    <TablaVue />
+  </div>
+
   <div class="container pt-5">
     <div class="col">
       <div class="input-group mb-3">
-        <input v-model="search" class="form-control" placeholder="Search" aria-label="Search" aria-describedby="search">
+        <input v-on:keydown.enter="getMails()"
+               v-model="search" 
+               class="form-control" 
+               placeholder="Search" 
+               aria-label="Search" 
+               aria-describedby="search">
 
         <span class="input-group-text" id="search">
           <a @click="getMails()">
@@ -35,21 +44,43 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="mail in mails" :key="mail['_id']"
-                v-on:click="ping(mail['_id'])">
+            <tr v-for="mail in mails" :key="mail['_id']" v-on:click="showMail(mail['_id'])">
               <td>{{ mail['_source']['Subject'] }}</td>
               <td>{{ mail['_source']['From'] }}</td>
               <td>{{ mail['_source']['To'] }}</td>
             </tr>
           </tbody>
         </table>
+
+        <nav  v-if="search"
+              aria-label="Page navigation">
+          <ul class="pagination">
+            <li class="page-item">
+              <a class="page-link" @click="getMails()" aria-label="Previous">
+                <span aria-hidden="true">&laquo;</span>
+                <span class="sr-only">Previous</span>
+              </a>
+            </li>
+            <li class="page-item">
+              <a class="page-link" @click="getMails()" aria-label="Next">
+                <span aria-hidden="true">&raquo;</span>
+                <span class="sr-only">Next</span>
+              </a>
+            </li>
+          </ul>
+        </nav>
       </div>
       <div class="col m-5">
         <div v-if="mail">
-          <div class="col"><p>{{mail['Subject']}}</p></div>
-          <div class="col">{{mail['message']}}</div>
-          <div class="col">{{mail['Date']}}</div>
-        
+          <div class="col py-3 subject">
+            {{mail['Subject']}}
+          </div>
+          <div class="col py-3 message">
+            {{ mail['message'] }}
+          </div>
+          <div class="col py-2 date">
+            <pre>Date:{{ formatDate(mail['Date']) }}</pre>
+          </div>
         </div>
       </div>
     </div>
@@ -61,6 +92,7 @@
 import { Observable, catchError, pipe, debounce, Subject, debounceTime } from 'rxjs';
 import axios from 'axios';
 
+// import TablaVue from './views/Tabla.vue';
 
 export default {
   name: 'MailsList',
@@ -71,14 +103,17 @@ export default {
       total: 0,
       errorMsg: '',
       search: '',
+      skip: 0,
+      limit: 10,
       URL: 'http://localhost:3000/api',
       debouncer: new Subject<String>()
     }
   },
   methods: {
-    getMails() {
-      axios.get(`${this.URL!}/search/${this.search}-0-10`)
+    getLastMails() {
+      axios.get(`${this.URL!}/${this.search}-${this.skip}-${this.limit}`)
         .then((response: any) => {
+          this.skip += this.limit
           const { hits } = response.data;
           this.mails = hits.hits;
           this.total = hits.total;
@@ -87,10 +122,25 @@ export default {
           this.errorMsg = 'Error: ' + err;
         })
     },
-    ping(id: string) {
-      const mailData = this.mails.find( mail => mail['_id'] === id);
+    getMails() {
+      axios.get(`${this.URL!}/search/${this.search}-${this.skip}-${this.limit}`)
+        .then((response: any) => {
+          this.skip += this.limit
+          const { hits } = response.data;
+          this.mails = hits.hits;
+          this.total = hits.total;
+        })
+        .catch((err: any) => {
+          this.errorMsg = 'Error: ' + err;
+        })
+    },
+    showMail(id: string) {
+      const mailData = this.mails.find(mail => mail['_id'] === id);
       this.mail = mailData!['_source'];
-      console.log(this.mail)
+    },
+    formatDate(dateString: string) {
+      const date  = dateString.split('-');
+      return date[0]
     },
     debounceSearch() {
       this.debouncer
@@ -99,11 +149,26 @@ export default {
           console.log(valor)
         })
     }
-  }
+  },
+  beforeMount() {
+      this.getLastMails();
+  },
 }
 </script>
 
 
 <style>
+
+  .subject {
+    color: black;
+    font-weight: bold;
+    text-transform: capitalize;
+    font-size: 1.3rem;
+  }
+
+  .message {
+    color: black;
+    text-align: justify;
+  }
 
 </style>
