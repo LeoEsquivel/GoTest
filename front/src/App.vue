@@ -1,85 +1,109 @@
-<script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
-</script>
-
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
 
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
-
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
-      </nav>
+  <nav class="navbar navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">
+        <img src="./assets/logo.svg" alt="Logo" width="30" height="24" class="d-inline-block align-text-top">
+        Test
+      </a>
     </div>
-  </header>
+  </nav>
 
-  <RouterView />
+  <div class="container pt-5">
+    <div class="col">
+      <div class="input-group mb-3">
+        <input v-model="search" class="form-control" placeholder="Search" aria-label="Search" aria-describedby="search">
+
+        <span class="input-group-text" id="search">
+          <a @click="getMails()">
+            <span class="material-symbols-outlined">
+              search
+            </span>
+          </a>
+        </span>
+      </div>
+    </div>
+    <h3 v-if="errorMsg">{{ errorMsg }}</h3>
+    <div class="d-flex justify-content-between">
+      <div class="col">
+        <table class="table">
+          <thead class="table-dark">
+            <tr>
+              <th scope="col">Subject</th>
+              <th scope="col">From</th>
+              <th scope="col">To</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="mail in mails" :key="mail['_id']"
+                v-on:click="ping(mail['_id'])">
+              <td>{{ mail['_source']['Subject'] }}</td>
+              <td>{{ mail['_source']['From'] }}</td>
+              <td>{{ mail['_source']['To'] }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="col m-5">
+        <div v-if="mail">
+          <div class="col"><p>{{mail['Subject']}}</p></div>
+          <div class="col">{{mail['message']}}</div>
+          <div class="col">{{mail['Date']}}</div>
+        
+        </div>
+      </div>
+    </div>
+
+  </div>
 </template>
 
-<style scoped>
-header {
-  line-height: 1.5;
-  max-height: 100vh;
-}
+<script lang="ts">
+import { Observable, catchError, pipe, debounce, Subject, debounceTime } from 'rxjs';
+import axios from 'axios';
 
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
 
-nav {
-  width: 100%;
-  font-size: 12px;
-  text-align: center;
-  margin-top: 2rem;
-}
-
-nav a.router-link-exact-active {
-  color: var(--color-text);
-}
-
-nav a.router-link-exact-active:hover {
-  background-color: transparent;
-}
-
-nav a {
-  display: inline-block;
-  padding: 0 1rem;
-  border-left: 1px solid var(--color-border);
-}
-
-nav a:first-of-type {
-  border: 0;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  nav {
-    text-align: left;
-    margin-left: -1rem;
-    font-size: 1rem;
-
-    padding: 1rem 0;
-    margin-top: 1rem;
+export default {
+  name: 'MailsList',
+  data() {
+    return {
+      mails: [],
+      mail: undefined,
+      total: 0,
+      errorMsg: '',
+      search: '',
+      URL: 'http://localhost:3000/api',
+      debouncer: new Subject<String>()
+    }
+  },
+  methods: {
+    getMails() {
+      axios.get(`${this.URL!}/search/${this.search}-0-10`)
+        .then((response: any) => {
+          const { hits } = response.data;
+          this.mails = hits.hits;
+          this.total = hits.total;
+        })
+        .catch((err: any) => {
+          this.errorMsg = 'Error: ' + err;
+        })
+    },
+    ping(id: string) {
+      const mailData = this.mails.find( mail => mail['_id'] === id);
+      this.mail = mailData!['_source'];
+      console.log(this.mail)
+    },
+    debounceSearch() {
+      this.debouncer
+        .pipe(debounceTime(300))
+        .subscribe(valor => {
+          console.log(valor)
+        })
+    }
   }
 }
+</script>
+
+
+<style>
+
 </style>
