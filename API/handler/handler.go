@@ -4,7 +4,6 @@ import (
 	"api/database"
 	m "api/model"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -118,7 +117,6 @@ func Search() http.HandlerFunc {
 		}
 
 		var url = url_BASE + index + "/_search"
-		fmt.Println(string(query_json))
 		req, err := http.NewRequest(
 			"POST",
 			url,
