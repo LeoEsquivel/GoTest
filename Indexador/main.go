@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 )
 
 type BulkJson struct {
@@ -19,11 +21,13 @@ type BulkJson struct {
 
 // TO DO: Add concurrency
 func main() {
-	// startTime := time.Now()
-	// fmt.Printf("Iniciando programa")
+	startTime := time.Now()
+	fmt.Println("Iniciando programa")
+	ruta := "D:/Proyectos-Personales/Go/enron_mail_20110402"
+	var waitGroup sync.WaitGroup
 
 	jsonbulk2 := make([]map[string]string, 0)
-	var err = filepath.Walk("./Go/enron_mail_20110402", func(path string, info fs.FileInfo, err error) error {
+	var err = filepath.Walk(ruta, func(path string, info fs.FileInfo, err error) error {
 		var fileData = make(map[string]string)
 
 		if !info.IsDir() {
@@ -34,9 +38,7 @@ func main() {
 
 			lines := strings.Split(string(content), "\n")
 
-			// pattern := regexp.MustCompile("(.*?):(.*)")
 			for _, line := range lines {
-				// keyval := pattern.Split(line, 0)
 				line = strings.Replace(line, "\r", "", -1)
 				keyval := strings.SplitN(line, ":", 2)
 				if len(keyval) == 2 && len(fileData) < 15 {
@@ -51,24 +53,32 @@ func main() {
 
 		} else if len(jsonbulk2) > 0 {
 			fmt.Printf("Visitando: %q\n", path)
-			insertData(jsonbulk2)
-			jsonbulk2 = nil
+			waitGroup.Add(1)
+			go func() {
+				mailsData := jsonbulk2
+				jsonbulk2 = nil
+				insertData(mailsData)
+				waitGroup.Done()
+			}()
+
+			// insertData(jsonbulk2)
+			// jsonbulk2 = nil
 		}
 
 		return nil
 	})
 
 	check(err, "Error recorriendo la ruta.")
-
-	// endTime := time.Now()
-	// fmt.Println("Terminando ejecuion:", endTime.Sub(startTime))
+	waitGroup.Wait()
+	endTime := time.Now()
+	fmt.Println("Fin de ejecucion:", endTime.Sub(startTime))
 
 }
 
 func insertData(fileDatas []map[string]string) {
 
 	var data = &BulkJson{
-		Index:   "enron_mail",
+		Index:   "enron_mail_concurerncia",
 		Records: fileDatas,
 	}
 
@@ -85,14 +95,12 @@ func insertData(fileDatas []map[string]string) {
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36")
 
 	resp, err := http.DefaultClient.Do(req)
-	check(err, "")
+	check(err, "Error al hacer la peticion")
 
 	defer resp.Body.Close()
-	fmt.Println(resp.StatusCode)
-
 	body, err := ioutil.ReadAll(resp.Body)
 
-	check(err, "")
+	check(err, "Error al obtener la respuesta")
 	fmt.Println(string(body))
 }
 
