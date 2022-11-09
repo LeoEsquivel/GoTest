@@ -4,6 +4,7 @@ import (
 	"api/database"
 	m "api/model"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -89,16 +90,15 @@ func GetLastMails() http.HandlerFunc {
 
 func Search() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		getSkip := chi.URLParam(r, "skip")
+		getFrom := chi.URLParam(r, "from")
 		getLimit := chi.URLParam(r, "limit")
 		getTerm := chi.URLParam(r, "term")
-		skip, _ := strconv.Atoi(getSkip)
+		from, _ := strconv.Atoi(getFrom)
 		limit, _ := strconv.Atoi(getLimit)
 
 		if limit == 0 {
 			limit = 15
 		}
-
 		var query = m.QuerySearch{
 			Search_type: "term",
 			Query_data: m.Query{
@@ -106,7 +106,7 @@ func Search() http.HandlerFunc {
 				Start_time: time.Now().AddDate(-1, 0, 0),
 				End_time:   time.Now(),
 			},
-			From:        skip,
+			From:        from,
 			Max_results: limit,
 			Source:      []interface{}{},
 		}
@@ -118,6 +118,7 @@ func Search() http.HandlerFunc {
 		}
 
 		var url = url_BASE + index + "/_search"
+		fmt.Println(string(query_json))
 		req, err := http.NewRequest(
 			"POST",
 			url,
